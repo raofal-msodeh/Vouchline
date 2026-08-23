@@ -42,11 +42,52 @@ def test_otlp_unknown_span_is_preserved_as_extension() -> None:
     events = spans_to_events(
         {
             "resourceSpans": [
-                {"scopeSpans": [{"spans": [{"spanId": "x", "name": "chat", "attributes": []}]}]}
+                {
+                    "scopeSpans": [
+                        {
+                            "spans": [
+                                {
+                                    "spanId": "x",
+                                    "name": "chat",
+                                    "startTimeUnixNano": "1767225600000000000",
+                                    "attributes": [],
+                                }
+                            ]
+                        }
+                    ]
+                }
             ]
         }
     )
     assert events[0]["kind"] == "extension.otlp.span"
+
+
+def test_otlp_invalid_timestamp_uses_compatibility_fallback() -> None:
+    payload = {"resourceSpans": [{"scopeSpans": [{"spans": [{"spanId": "x", "name": "chat"}]}]}]}
+    events = spans_to_events(payload)
+    assert events[0]["timestamp"]
+
+
+def test_otlp_rejects_out_of_range_numeric_timestamp() -> None:
+    payload = {
+        "resourceSpans": [
+            {
+                "scopeSpans": [
+                    {
+                        "spans": [
+                            {
+                                "spanId": "x",
+                                "name": "chat",
+                                "startTimeUnixNano": "999999999999999999999999999999999999",
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+    with pytest.raises(InputError, match="out-of-range"):
+        spans_to_events(payload)
 
 
 def test_otlp_requires_bounded_array() -> None:

@@ -29,8 +29,14 @@ def _attributes(span: dict[str, Any]) -> dict[str, Any]:
 
 def _timestamp(span: dict[str, Any]) -> str:
     raw = span.get("startTimeUnixNano")
-    if isinstance(raw, str) and raw.isdigit():
-        return datetime.fromtimestamp(int(raw) / 1_000_000_000, tz=UTC).isoformat()
+    if isinstance(raw, str) and raw.isdigit() and int(raw) > 0:
+        try:
+            return datetime.fromtimestamp(int(raw) / 1_000_000_000, tz=UTC).isoformat()
+        except (OverflowError, OSError, ValueError) as exc:
+            raise InputError(
+                "OTLP span contains an out-of-range startTimeUnixNano",
+                details={"field": "startTimeUnixNano"},
+            ) from exc
     return datetime.now(UTC).isoformat()
 
 
